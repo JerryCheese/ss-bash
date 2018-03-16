@@ -270,7 +270,13 @@ check_traffic_against_limits () {
         }
     }' $USER_FILE $TRAFFIC_LOG`
     # 禁用超限端口
+    keep_ports=" "
     for p in $ports_2ban; do
+        if [[ "$keep_ports" = "" ]]; then
+            keep_ports="$p"
+        else
+            keep_ports="$keep_ports|$p"
+        fi
         if grep -q $p $PORTS_ALREADY_BAN; then
             continue;
         else
@@ -279,16 +285,13 @@ check_traffic_against_limits () {
             echo $p >> $PORTS_ALREADY_BAN
         fi
     done
-    # 启用未超限端口
-    for p in `cat $PORTS_ALREADY_BAN`; do
-        need_ban="`echo $ports_2ban| grep $p`"
-        echo "'$need_ban'"
-        if [ "$need_ban" = "" ]; then
-            del_reject_rules $p
-            add_rules $p
-            sed -i "/^$p/d" $PORTS_ALREADY_BAN
-        fi
+    # 打开没有被限制的端口
+    for p in `sed -r "/$keep_ports/d" $PORTS_ALREADY_BAN`; do
+        del_reject_rules $p
+        add_rules $p
     done
+    # 删除没有被限制的端口
+    sed -riq "/$keep_ports/!d" $PORTS_ALREADY_BAN
 }
 get_traffic_from_iptables () {
         echo "$(iptables -nvx -L $SS_IN_RULES)" "$(iptables -nvx -L $SS_OUT_RULES)" |
