@@ -206,19 +206,19 @@ calc_remaining () {
         for(j=1;j<i;j++) {
             port=user[j];
             printf("%-5d\t", port);
-           
+
             limit=limits[port]
             printf("%s", limit);
             print_in_gb(limit);
             printf("\t");
             totallim+=limit;
-            
+
             used=uta[port];
             printf("%.0f", used);
             print_in_gb(used);
             printf("\t");
             totalused+=used;
-            
+
             remaining=limits[port]-uta[port];
             printf("%.0f", remaining);
             print_in_gb(remaining);
@@ -235,7 +235,7 @@ calc_remaining () {
             printf("%.0f", totalrem);
             print_in_gb(totalrem);
             printf("\n");
-        
+
     }' $USER_FILE $TRAFFIC_LOG > $TRAFFIC_FILE.tmp
     mv $TRAFFIC_FILE.tmp $TRAFFIC_FILE
     rm $TRAFFIC_FILE.lock
@@ -268,14 +268,25 @@ check_traffic_against_limits () {
             remaining=limits[port]-uta[port];
             if(remaining<=0) print port;
         }
-    }' $USER_FILE $TRAFFIC_LOG` 
+    }' $USER_FILE $TRAFFIC_LOG`
+    # 禁用超限端口
     for p in $ports_2ban; do
         if grep -q $p $PORTS_ALREADY_BAN; then
             continue;
-        else 
+        else
             del_rules $p
             add_reject_rules $p
             echo $p >> $PORTS_ALREADY_BAN
+        fi
+    done
+    # 启用未超限端口
+    for p in `cat $PORTS_ALREADY_BAN`; do
+        need_ban="`echo $ports_2ban| grep $p`"
+        echo "'$need_ban'"
+        if [ "$need_ban" = "" ]; then
+            del_reject_rules $p
+            add_rules $p
+            sed -i "/^$p/d" $PORTS_ALREADY_BAN
         fi
     done
 }
@@ -290,7 +301,7 @@ get_traffic_from_iptables () {
         }
         END {
             for(port in tr) {
-                printf("'$TRA_FORMAT'", port, tr[port]) 
+                printf("'$TRA_FORMAT'", port, tr[port])
             }
         }
         '
@@ -306,7 +317,7 @@ get_traffic_from_iptables_now () {
 
 calc_traffic_between_intervel () {
         awk '
-        { 
+        {
             if(FILENAME=="'$IPT_TRA_LOG.tmp'") {
                 port=$1;
                 tras=$2;
