@@ -21,7 +21,7 @@
 # 流量采样间隔,单位为秒
 INTERVEL=300
 # 指定Shadowsocks程序文件
-SSSERVER=ssserver
+SSSERVER=/usr/local/shadowsocks/server.py
 
 SSSERVER_NAME=`basename $SSSERVER`
 
@@ -33,6 +33,8 @@ fi
 
 USER_FILE=$DIR/ssusers
 JSON_FILE=$DIR/ssmlt.json
+LOG_FILE=$DIR/run.log
+#LOG_FILE=/var/log/ssserver.log
 TRAFFIC_FILE=$DIR/sstraffic
 
 SSSERVER_PID=$TMPDIR/ssserver.pid
@@ -54,14 +56,27 @@ del_ipt_chains () {
     iptables -D OUTPUT -j $SS_OUT_RULES
     iptables -X $SS_IN_RULES
     iptables -X $SS_OUT_RULES
+
+    ip6tables -F $SS_IN_RULES
+    ip6tables -F $SS_OUT_RULES
+    ip6tables -D INPUT -j $SS_IN_RULES
+    ip6tables -D OUTPUT -j $SS_OUT_RULES
+    ip6tables -X $SS_IN_RULES
+    ip6tables -X $SS_OUT_RULES
 }
 init_ipt_chains () {
     del_ipt_chains 2> /dev/null
     iptables -N $SS_IN_RULES
     iptables -N $SS_OUT_RULES
-    iptables -A INPUT -j $SS_IN_RULES
+    iptables -I INPUT 6 -j $SS_IN_RULES
     iptables -A OUTPUT -j $SS_OUT_RULES
+
+    ip6tables -N $SS_IN_RULES
+    ip6tables -N $SS_OUT_RULES
+    ip6tables -I INPUT 6 -j $SS_IN_RULES
+    ip6tables -A OUTPUT -j $SS_OUT_RULES
 }
+
 
 add_rules () {
     PORT=$1;
@@ -69,6 +84,11 @@ add_rules () {
     iptables -A $SS_OUT_RULES -p tcp --sport $PORT -j ACCEPT
     iptables -A $SS_IN_RULES -p udp --dport $PORT -j ACCEPT
     iptables -A $SS_OUT_RULES -p udp --sport $PORT -j ACCEPT
+
+    ip6tables -A $SS_IN_RULES -p tcp --dport $PORT -j ACCEPT
+    ip6tables -A $SS_OUT_RULES -p tcp --sport $PORT -j ACCEPT
+    ip6tables -A $SS_IN_RULES -p udp --dport $PORT -j ACCEPT
+    ip6tables -A $SS_OUT_RULES -p udp --sport $PORT -j ACCEPT
 }
 
 add_reject_rules () {
@@ -77,6 +97,11 @@ add_reject_rules () {
     iptables -A $SS_OUT_RULES -p tcp --sport $PORT -j REJECT
     iptables -A $SS_IN_RULES -p udp --dport $PORT -j REJECT
     iptables -A $SS_OUT_RULES -p udp --sport $PORT -j REJECT
+
+    ip6tables -A $SS_IN_RULES -p tcp --dport $PORT -j REJECT
+    ip6tables -A $SS_OUT_RULES -p tcp --sport $PORT -j REJECT
+    ip6tables -A $SS_IN_RULES -p udp --dport $PORT -j REJECT
+    ip6tables -A $SS_OUT_RULES -p udp --sport $PORT -j REJECT
 }
 
 del_rules () {
@@ -85,6 +110,11 @@ del_rules () {
     iptables -D $SS_OUT_RULES -p tcp --sport $PORT -j ACCEPT
     iptables -D $SS_IN_RULES -p udp --dport $PORT -j ACCEPT
     iptables -D $SS_OUT_RULES -p udp --sport $PORT -j ACCEPT
+
+    ip6tables -D $SS_IN_RULES -p tcp --dport $PORT -j ACCEPT
+    ip6tables -D $SS_OUT_RULES -p tcp --sport $PORT -j ACCEPT
+    ip6tables -D $SS_IN_RULES -p udp --dport $PORT -j ACCEPT
+    ip6tables -D $SS_OUT_RULES -p udp --sport $PORT -j ACCEPT
 }
 
 del_reject_rules () {
@@ -93,11 +123,19 @@ del_reject_rules () {
     iptables -D $SS_OUT_RULES -p tcp --sport $PORT -j REJECT
     iptables -D $SS_IN_RULES -p udp --dport $PORT -j REJECT
     iptables -D $SS_OUT_RULES -p udp --sport $PORT -j REJECT
+
+    ip6tables -D $SS_IN_RULES -p tcp --dport $PORT -j REJECT
+    ip6tables -D $SS_OUT_RULES -p tcp --sport $PORT -j REJECT
+    ip6tables -D $SS_IN_RULES -p udp --dport $PORT -j REJECT
+    ip6tables -D $SS_OUT_RULES -p udp --sport $PORT -j REJECT
 }
 
 list_rules () {
     iptables -vnx -L $SS_IN_RULES
     iptables -vnx -L $SS_OUT_RULES
+
+    ip6tables -vnx -L $SS_IN_RULES
+    ip6tables -vnx -L $SS_OUT_RULES
 }
 
 add_new_rules () {

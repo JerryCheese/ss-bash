@@ -69,13 +69,13 @@ create_json () {
 }
 
 run_ssserver () {
-    $SSSERVER -qq -c $JSON_FILE 2>/dev/null >/dev/null &
-    echo $! > $SSSERVER_PID
+    $SSSERVER -d start -vv -c $JSON_FILE --log-file $LOG_FILE --pid-file $SSSERVER_PID > /dev/null 2>&1
+    #echo $! > $SSSERVER_PID
 }
 
 check_ssserver () {
     if [ -e $SSSERVER_PID ]; then
-        ps $(cat $SSSERVER_PID) 2>/dev/null | grep $SSSERVER_NAME 2>/dev/null
+       ps $(cat $SSSERVER_PID) 2>/dev/null | grep $SSSERVER_NAME 2>/dev/null
         return $?
     else
         return 1
@@ -139,7 +139,6 @@ stop_ss () {
     if check_ssserver; then
         kill `cat $SSSERVER_PID`
         rm $SSSERVER_PID
-        del_ipt_chains 2> /dev/null
         echo 'ssserver已关闭'
     else
         echo 'ssserver未启动'
@@ -151,7 +150,9 @@ stop_ss () {
     else
         echo 'sscounter.sh未启动'
     fi
+    del_ipt_chains 2> /dev/null
 }
+
 
 restart_ss () {
     stop_ss
